@@ -48,21 +48,31 @@ const supportedSchemas = new Set(['data:', 'http:', 'https:']);
 export default async function fetch(url, options_) {
 	return new Promise((resolve, reject) => {
 		// Build request object
+		alert('1');
 		const request = new Request(url, options_);
+		alert('2');
 		const {parsedURL, options} = getNodeRequestOptions(request);
+		alert('3');
 		if (!supportedSchemas.has(parsedURL.protocol)) {
+			alert('4');
 			throw new TypeError(`node-fetch cannot load ${url}. URL scheme "${parsedURL.protocol.replace(/:$/, '')}" is not supported.`);
 		}
 
+		alert('5');
 		if (parsedURL.protocol === 'data:') {
+			alert('6');
 			const data = dataUriToBuffer(request.url);
+			alert('7');
 			const response = new Response(data, {headers: {'Content-Type': data.typeFull}});
+			alert('8');
 			resolve(response);
 			return;
 		}
 
 		// Wrap http.request into fetch
+		alert('9');
 		const send = (parsedURL.protocol === 'https:' ? https : http).request;
+		alert('10');
 		const {signal} = request;
 		let response = null;
 
@@ -80,7 +90,9 @@ export default async function fetch(url, options_) {
 			response.body.emit('error', error);
 		};
 
+		alert('11');
 		if (signal && signal.aborted) {
+			alert('12');
 			abort();
 			return;
 		}
@@ -93,7 +105,9 @@ export default async function fetch(url, options_) {
 		// Send request
 		const request_ = send(parsedURL.toString(), options);
 
+		alert('13');
 		if (signal) {
+			alert('14');
 			signal.addEventListener('abort', abortAndFinalize);
 		}
 
@@ -104,29 +118,39 @@ export default async function fetch(url, options_) {
 			}
 		};
 
+		alert('15');
 		request_.on('error', error => {
+			alert('16');
 			reject(new FetchError(`request to ${request.url} failed, reason: ${error.message}`, 'system', error));
 			finalize();
 		});
 
 		fixResponseChunkedTransferBadEnding(request_, error => {
+			alert('17');
 			if (response && response.body) {
 				response.body.destroy(error);
 			}
 		});
 
 		/* c8 ignore next 18 */
+		alert('18');
 		if (process.version < 'v14') {
+			alert('19');
+
 			// Before Node.js 14, pipeline() does not fully support async iterators and does not always
 			// properly handle when the socket close/end events are out of order.
 			request_.on('socket', s => {
+				alert('20');
 				let endedWithEventsCount;
 				s.prependListener('end', () => {
 					endedWithEventsCount = s._eventsCount;
 				});
+				alert('21');
 				s.prependListener('close', hadError => {
 					// if end happened before close but the socket didn't emit an error, do it now
+					alert('22');
 					if (response && endedWithEventsCount < s._eventsCount && !hadError) {
+						alert('23');
 						const error = new Error('Premature close');
 						error.code = 'ERR_STREAM_PREMATURE_CLOSE';
 						response.body.emit('error', error);
@@ -135,47 +159,63 @@ export default async function fetch(url, options_) {
 			});
 		}
 
+		alert('24');
 		request_.on('response', response_ => {
+			alert('25');
 			request_.setTimeout(0);
 			const headers = fromRawHeaders(response_.rawHeaders);
+			alert('26');
 
 			// HTTP fetch step 5
 			if (isRedirect(response_.statusCode)) {
+				alert('27');
 				// HTTP fetch step 5.2
 				const location = headers.get('Location');
 
 				// HTTP fetch step 5.3
+				alert('28');
 				let locationURL = null;
 				try {
+					alert('29');
 					locationURL = location === null ? null : new URL(location, request.url);
 				} catch {
 					// error here can only be invalid URL in Location: header
 					// do not throw when options.redirect == manual
 					// let the user extract the errorneous redirect URL
+					alert('30');
 					if (request.redirect !== 'manual') {
+						alert('31');
 						reject(new FetchError(`uri requested responds with an invalid redirect URL: ${location}`, 'invalid-redirect'));
+						alert('32');
 						finalize();
 						return;
 					}
 				}
 
 				// HTTP fetch step 5.5
+				alert('33');
 				switch (request.redirect) {
 					case 'error':
+						alert('34');
 						reject(new FetchError(`uri requested responds with a redirect, redirect mode is set to error: ${request.url}`, 'no-redirect'));
 						finalize();
 						return;
 					case 'manual':
+						alert('35');
 						// Nothing to do
 						break;
 					case 'follow': {
+						alert('36');
 						// HTTP-redirect fetch step 2
 						if (locationURL === null) {
+							alert('37');
 							break;
 						}
 
 						// HTTP-redirect fetch step 5
+						alert('38');
 						if (request.counter >= request.follow) {
+							alert('39');
 							reject(new FetchError(`maximum redirect reached at: ${request.url}`, 'max-redirect'));
 							finalize();
 							return;
@@ -206,21 +246,28 @@ export default async function fetch(url, options_) {
 						// headers will also be ignored when following a redirect to a domain using
 						// a different protocol. For example, a redirect from "https://foo.com" to "http://foo.com"
 						// will not forward the sensitive headers
+						alert('40');
 						if (!isDomainOrSubdomain(request.url, locationURL) || !isSameProtocol(request.url, locationURL)) {
+							alert('41');
 							for (const name of ['authorization', 'www-authenticate', 'cookie', 'cookie2']) {
+								alert('42');
 								requestOptions.headers.delete(name);
 							}
 						}
 
 						// HTTP-redirect fetch step 9
+						alert('43');
 						if (response_.statusCode !== 303 && request.body && options_.body instanceof Stream.Readable) {
+							alert('44');
 							reject(new FetchError('Cannot follow redirect with body being a readable stream', 'unsupported-redirect'));
 							finalize();
 							return;
 						}
 
 						// HTTP-redirect fetch step 11
+						alert('45');
 						if (response_.statusCode === 303 || ((response_.statusCode === 301 || response_.statusCode === 302) && request.method === 'POST')) {
+							alert('46');
 							requestOptions.method = 'GET';
 							requestOptions.body = undefined;
 							requestOptions.headers.delete('content-length');
@@ -233,6 +280,7 @@ export default async function fetch(url, options_) {
 						}
 
 						// HTTP-redirect fetch step 15
+						alert('47');
 						resolve(fetch(new Request(locationURL, requestOptions)));
 						finalize();
 						return;
@@ -244,12 +292,15 @@ export default async function fetch(url, options_) {
 			}
 
 			// Prepare response
+			alert('48');
 			if (signal) {
+				alert('49');
 				response_.once('end', () => {
 					signal.removeEventListener('abort', abortAndFinalize);
 				});
 			}
 
+			alert('50');
 			let body = pump(response_, new PassThrough(), error => {
 				if (error) {
 					reject(error);
@@ -257,7 +308,9 @@ export default async function fetch(url, options_) {
 			});
 			// see https://github.com/nodejs/node/pull/29376
 			/* c8 ignore next 3 */
+			alert('51');
 			if (process.version < 'v12.10') {
+				alert('52');
 				response_.on('aborted', abortAndFinalize);
 			}
 
@@ -282,7 +335,9 @@ export default async function fetch(url, options_) {
 			// 3. no Content-Encoding header
 			// 4. no content response (204)
 			// 5. content not modified response (304)
+			alert('53');
 			if (!request.compress || request.method === 'HEAD' || codings === null || response_.statusCode === 204 || response_.statusCode === 304) {
+				alert('54');
 				response = new Response(body, responseOptions);
 				resolve(response);
 				return;
@@ -299,18 +354,22 @@ export default async function fetch(url, options_) {
 			};
 
 			// For gzip
+			alert('55');
 			if (codings === 'gzip' || codings === 'x-gzip') {
+				alert('56');
 				body = pump(body, zlib.createGunzip(zlibOptions), error => {
 					if (error) {
 						reject(error);
 					}
 				});
+				alert('57');
 				response = new Response(body, responseOptions);
 				resolve(response);
 				return;
 			}
 
 			// For deflate
+			alert('58');
 			if (codings === 'deflate' || codings === 'x-deflate') {
 				// Handle the infamous raw deflate response from old servers
 				// a hack for old IIS and Apache servers
@@ -319,6 +378,7 @@ export default async function fetch(url, options_) {
 						reject(error);
 					}
 				});
+				alert('59');
 				raw.once('data', chunk => {
 					// See http://stackoverflow.com/questions/37519828
 					if ((chunk[0] & 0x0F) === 0x08) {
@@ -338,6 +398,7 @@ export default async function fetch(url, options_) {
 					response = new Response(body, responseOptions);
 					resolve(response);
 				});
+				alert('60');
 				raw.once('end', () => {
 					// Some old IIS servers return zero-length OK deflate responses, so
 					// 'data' is never emitted. See https://github.com/node-fetch/node-fetch/pull/903
@@ -350,7 +411,9 @@ export default async function fetch(url, options_) {
 			}
 
 			// For br
+			alert('61');
 			if (codings === 'br') {
+				alert('62');
 				body = pump(body, zlib.createBrotliDecompress(), error => {
 					if (error) {
 						reject(error);
@@ -362,12 +425,16 @@ export default async function fetch(url, options_) {
 			}
 
 			// Otherwise, use response as-is
+			alert('63');
 			response = new Response(body, responseOptions);
+			alert('64');
 			resolve(response);
 		});
 
 		// eslint-disable-next-line promise/prefer-await-to-then
+		alert('65');
 		writeToStream(request_, request).catch(reject);
+		alert('66');
 	});
 }
 
